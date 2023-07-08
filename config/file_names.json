@@ -1,0 +1,23 @@
+{
+    "instances_folder": "instances",
+    "result_folder": "target",
+
+    "generator_script": "generate_instances.py",
+    "subsumption_script": "compute_subsumptions.py",
+    "master_problem_script": "solve_master.py",
+    "subproblem_script": "solve_subproblem.py",
+    "cores_script": "compute_cores.py",
+
+    "asp_programs_folder": "asp_programs",
+    "master_asp_program": "master.lp",
+    "subproblem_asp_program": "subproblem.lp",
+    "temporary_asp_file_name": "temp.lp",
+    "temporary_output_file_name": "temp.txt",
+    
+    "instance_file_name": "mashp_input.json",
+    "subsumptions_file_name": "subsumptions.json",
+    "subproblem_input_file_name": "subproblemInput.json",
+    "subproblem_result_file_name": "results.json",
+    "cores_file_name": "cores.json",
+    "previous_cores_file_name": "prev_cores.json"
+}
