@@ -19,5 +19,6 @@
     "subproblem_input_file_name": "subproblemInput.json",
     "subproblem_result_file_name": "results.json",
     "cores_file_name": "cores.json",
-    "previous_cores_file_name": "prev_cores.json"
+    "previous_cores_file_name": "prev_cores.json",
+    "previous_cores_asp_file_name": "prev_cores.lp"
 }

@@ -78,6 +78,54 @@ def solve_with_asp(mashp_input):
                     for protocol_packet in protocol_packets:
                         file.write(f'request({patient_name}, {protocol_name}, {iteration_name}, {protocol_packet["packet_id"]}, {protocol_packet["start_date"]}, {protocol_packet["freq"]}, {protocol_packet["tolerance"]}, {protocol_packet["existence"][0]}, {protocol_packet["existence"][1]}, {initial_shift}).\n')
     
+    if args.use_cores:
+        with open(config["previous_cores_asp_file_name"], "a+") as file:
+            coreid = 0
+            if not args.expand_core_names:
+                if os.path.isfile("prev_cores.json"):
+
+                    with open("prev_cores.json", "r") as f:
+                        prev_cores = json.load(f)
+
+                    for coreid, core in enumerate(prev_cores["list"]):
+                        for index, t in enumerate(core):
+                            file.write(f"core({t[0]}, {t[1]}, {t[2]}, {coreid}, {index}).")
+            
+                else:
+                    prev_cores = {"list": []}
+
+            if os.path.isfile("cores.json"):
+
+                with open("cores.json", "r") as f:
+                    cores = json.load(f)
+                
+                if args.expand_core_names:
+                        for core_name, core in cores.items():
+                            coreid += 1
+                            for day in core["days"]:
+                                current_core = list()
+                                for multipacket_name, multipacket in core["multipackets"].items():
+                                    for multipacket_index in range(multipacket["times"]):
+                                        for service_name in multipacket["services"]:
+                                            file.write(f"multipacket_nogood({multipacket_name}, {multipacket_index}, {service_name}, {day}, {multipacket['iteration']}, {core_name})).\n")
+                else:
+                    for core in cores.values():
+                        coreid += 1
+                        for day in core["days"]:
+                            current_core = list()
+                            for multipacket in core["multipackets"].items():
+                                for mid, (patient_name, packets) in enumerate(multipacket["actual"].items()):
+                                    for packet_name in packets:
+                                        file.write(f"core({patient_name}, {packet_name}, {int(day)}, {coreid}, {mid}).")
+                                        current_core.append((patient_name, packet_name, day))
+                        prev_cores["list"].append(current_core)
+                
+                os.remove("cores.json")
+
+                if not args.expand_core_names:
+                    with open("prev_cores.json", "w") as f:
+                        json.dump(prev_cores, f)
+
     # solving of the instance
     params = [
         "clingo",
@@ -445,6 +493,50 @@ def solve_with_milp(mashp_input):
             results[day_name][patient_name]["packets"].append(packet_name)
     
     return results
+
+############################### CORE COMPUTATION ###############################
+################################# NOT FINISHED #################################
+
+# def process_cores():
+#     """Returns a list of list of triplets (patient, service, day).
+#     Each sublist correspond to a different impossible assignment."""
+
+#     # read previous cores, if present
+#     previous_ground_cores = list()
+#     previous_cores_file_name = os.path.join(args.input, config["previous_cores_file_name"])
+#     if os.path.isfile(previous_cores_file_name):
+#         with open(previous_cores_file_name, "r") as file:
+#             temp = json.load(file)
+#         previous_ground_cores = temp["list"]
+#         del temp
+
+#     # read the core file, if present
+#     cores_file_name = os.path.join(args.input, config["cores_file_name"])
+#     if not os.path.isfile(cores_file_name):
+#         return previous_ground_cores
+#     with open(cores_file_name, "r") as file:
+#         cores = json.load(file)
+#     # os.remove(cores_file_name)
+    
+#     current_ground_cores = list()
+#     for core in cores.values():
+#         for day_name in core["days"]:
+#             ground_core = list()
+#             for multipacket in core["multipacket"].values():
+#                 if not args.expand_core_names:
+#                     for patient_name, packet_name in multipacket["actual"].items():
+#                         ground_core.append((patient_name, packet_name, int(day_name)))
+#                     else:
+#                         pass
+
+#     # if new cores were found, write them to file for the next iteration
+#     if len(current_ground_cores) > 0:
+#         current_ground_cores.extend(previous_ground_cores)
+#         current_ground_cores = sorted(set(current_ground_cores))
+#         with open(previous_cores_file_name, "w") as file:
+#             json.dump(current_ground_cores, file)
+
+#     return current_ground_cores
 
 ###################################### MAIN ####################################
 

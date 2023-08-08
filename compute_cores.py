@@ -10,6 +10,7 @@ import argparse
 parser = argparse.ArgumentParser(description="Compute cores")
 parser.add_argument("--input", help="folder with the instance file", type=str)
 parser.add_argument("--expand-days", action="store_true")
+parser.add_argument("--iteration", type=int)
 parser.add_argument("-v", "--verbose", help="prints what is done", action="store_true")
 args = parser.parse_args(sys.argv[1:])
 
@@ -164,7 +165,8 @@ def compute_cores(mashp_input, requests, results, subsumptions):
 
                     core_days.sort()
 
-                cores[f"core{core_index:02}"] = {
+                cores[f"core{core_index:02}_{args.iteration:02}"] = {
+                    "iteration": args.iteration,
                     "days": core_days,
                     "multipackets": multipackets,
                     "affectedCareUnits": care_units_done

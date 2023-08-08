@@ -58,6 +58,10 @@ if args.use_cores:
 else:
     max_iteration = 1
 
+if os.path.isfile(config["previous_cores_asp_file_name"]):
+    with open(config["previous_cores_asp_file_name"], "w") as file:
+        file.write("mpk.\n")
+
 if args.verbose:
     global_start_time = time.perf_counter()
     instance_number = 0
@@ -128,7 +132,8 @@ for group_folder_name in sorted(os.listdir(args.input)):
             if args.use_cores:
                 params = [
                     "python", config["cores_script"],
-                    "--input", instance_path_name
+                    "--input", instance_path_name,
+                    "--iteration", iteration_index
                 ]
                 if args.expand_core_days:
                     params.append("--expand-days")

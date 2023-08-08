@@ -68,6 +68,10 @@ is_interval_satisfied(Patient, Protocol, Iteration, Packet, IntervalIndex) :-
     Day - (Start + InitialShift + Frequency * IntervalIndex) >= -Tolerance,
     Day - (Start + InitialShift + Frequency * IntervalIndex) <= Tolerance.
 
+group(Group) :- core(_, _, _, Group, _).
+
+:- do(Patient, Packet, Day) : core(Patient, Packet, Day, Group, MID); group(Group).
+
 % objective constraints, weighted by priority
 :~ is_interval_satisfied(Patient, Protocol, Iteration, Packet, IntervalIndex), patient_has_priority(Patient, Priority).
     [-1@Priority,Patient,Protocol,Iteration,Packet,IntervalIndex]
