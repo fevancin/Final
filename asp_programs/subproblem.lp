@@ -9,7 +9,7 @@
 % packet_has_service(Packet, Service).
 
 % patient_has_priority(Patient, Priority).
-% patient_requests_packet(Patient, Packet)
+% patient_requests_packet(Patient, Packet).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% ACTUAL PROGRAM %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
