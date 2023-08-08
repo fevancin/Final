@@ -32,10 +32,15 @@ with open(os.path.join("config", "file_names.json"), "r") as file:
 if not os.path.isdir(args.input):
     raise FileNotFoundError("Instance folder not found")
 
+INPUT_DIR = args.input
+
 ################################## ASP SOLVER ##################################
 
-def solve_with_asp(mashp_input, requests):
+def solve_with_asp(mashp_input, requests, TMP_PATH=INPUT_DIR):
     scheduled_services = dict()
+
+    tmp_asp_in_file  = os.path.join(TMP_PATH, config["temporary_asp_file_name"])
+    tmp_asp_out_file = os.path.join(TMP_PATH, config["temporary_output_file_name"])
 
     # solve each day separately
     for day_name, day_requests in requests.items():
@@ -49,7 +54,7 @@ def solve_with_asp(mashp_input, requests):
             service_names.update(mashp_input["abstract_packet"][packet_name])
 
         # creation of the input file for the asp solver
-        with open(config["temporary_asp_file_name"], "w") as file:
+        with open(tmp_asp_in_file, "w") as file:
 
             max_time = 0
             for care_unit_name, operators in mashp_input["daily_capacity"][day_name].items():
@@ -77,17 +82,17 @@ def solve_with_asp(mashp_input, requests):
         # solving of the instance
         params = [
             "clingo",
-            config["temporary_asp_file_name"],
+            tmp_asp_in_file,
             os.path.join(config["asp_programs_folder"], config["subproblem_asp_program"]),
             "--time-limit", str(args.time_limit),
             "--verbose=0"
         ]
-        with open(config["temporary_output_file_name"], "w") as file:
+        with open(tmp_asp_out_file, "w") as file:
             subprocess.run(params, stdout=file)
     
         # decoding of the output
         scheduled_services[day_name] = list()
-        with open(config["temporary_output_file_name"], "r") as file:
+        with open(tmp_asp_out_file, "r") as file:
 
             tokens = file.read().split("\n")[-4].split("do(")[1:]
             tokens[-1] = tokens[-1] + " "
@@ -103,10 +108,10 @@ def solve_with_asp(mashp_input, requests):
                 })
         
         # removal of temporary working files
-        if os.path.isfile(config["temporary_asp_file_name"]):
-            os.remove(config["temporary_asp_file_name"])
-        if os.path.isfile(config["temporary_output_file_name"]):
-            os.remove(config["temporary_output_file_name"])
+        if os.path.isfile(tmp_asp_in_file):
+            os.remove(tmp_asp_in_file)
+        if os.path.isfile(tmp_asp_out_file):
+            os.remove(tmp_asp_out_file)
 
     return scheduled_services
 

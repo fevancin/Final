@@ -18,19 +18,19 @@ with open(os.path.join("config", "file_names.json"), "r") as file:
 
 # read the command line arguments
 parser = argparse.ArgumentParser(description="Main script for the instances solving process")
-parser.add_argument("--input", help="input folder with the instances", type=str, metavar="I", default=config["instances_folder"])
+parser.add_argument("--input",              help="input folder with the instances", type=str, metavar="I", default=config["instances_folder"])
 
-parser.add_argument("--master-method", help="master solving method", choices=["asp", "milp"], default="asp")
-parser.add_argument("--subproblem-method", help="subproblem solving method", choices=["asp", "milp_basic", "milp_optimized", "milp_epsilon"], default="milp_optimized")
+parser.add_argument("--master-method",      help="master solving method",       choices=["asp", "milp"], default="asp")
+parser.add_argument("--subproblem-method",  help="subproblem solving method",   choices=["asp", "milp_basic", "milp_optimized", "milp_epsilon"], default="milp_optimized")
 
-parser.add_argument("-t", "--time-limit", help="time limit for the solvers", type=int, metavar="T", default=5)
-parser.add_argument("--max-iteration", help="maximum iteration amount", type=int, metavar="I", default=10)
+parser.add_argument("-t", "--time-limit",   help="time limit for the solvers",  type=int, metavar="T", default=3600)
+parser.add_argument("--max-iteration",      help="maximum iteration amount",    type=int, metavar="I", default=100000000)
 
-parser.add_argument("--use-cores", action="store_true")
-parser.add_argument("--expand-core-days", action="store_true")
-parser.add_argument("--expand-core-names", action="store_true")
+parser.add_argument("--use-cores",          action="store_true")
+parser.add_argument("--expand-core-days",   action="store_true")
+parser.add_argument("--expand-core-names",  action="store_true")
 
-parser.add_argument("-v", "--verbose", help="prints what is done", action="store_true")
+parser.add_argument("-v", "--verbose",      help="prints what is done", action="store_true")
 
 args = parser.parse_args(sys.argv[1:])
 

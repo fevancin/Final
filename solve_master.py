@@ -5,6 +5,8 @@ import time
 import argparse
 import subprocess
 
+from src.mashp_tools import format_instance_to_ASP, format_SP_input_from_MP_output
+
 from pyomo.environ import ConcreteModel, SolverFactory, maximize
 from pyomo.environ import Set, Var, Objective, Constraint, ConstraintList
 from pyomo.environ import Boolean, value, TerminationCondition
@@ -13,12 +15,12 @@ from pyomo.environ import Boolean, value, TerminationCondition
 
 # read the command line arguments
 parser = argparse.ArgumentParser(description="Solve the master problem")
-parser.add_argument("--input", help="folder with the instance file", type=str)
-parser.add_argument("-m", "--method", help="solving method", choices=["asp", "milp"], default="asp")
-parser.add_argument("-t", "--time-limit", help="time limit for the solver", type=int, metavar="T", default=5)
-parser.add_argument("--use-cores", action="store_true")
-parser.add_argument("--expand-core-names", action="store_true")
-parser.add_argument("-v", "--verbose", help="prints what is done", action="store_true")
+parser.add_argument("--input",              help="folder with the instance file", type=str)
+parser.add_argument("-m", "--method",       help="solving method", choices=["asp", "milp"], default="asp")
+parser.add_argument("-t", "--time-limit",   help="time limit for the solver", type=int, metavar="T", default=5)
+parser.add_argument("--use-cores",                                      action="store_true")
+parser.add_argument("--expand-core-names",                              action="store_true")
+parser.add_argument("-v", "--verbose",      help="prints what is done", action="store_true")
 args = parser.parse_args(sys.argv[1:])
 
 # move the current working directory to the file location
@@ -36,47 +38,53 @@ if not os.path.isdir(args.input):
 
 ################################## ASP SOLVER ##################################
 
-def solve_with_asp(mashp_input):
+def solve_with_asp(input_file_name):
     """Returns a schedule attempt as a dict of dict of lists (day->patient->packets)"""
 
     # creation of the input file for the asp solver
-    with open(config["temporary_asp_file_name"], "w") as file:
+    format_instance_to_ASP(input_file_name)
+    INPUT_DIR = os.path.dirname(input_file_name)
 
-        file.write(f'day(1..{mashp_input["horizon"]}).\n')
-        file.write(f'interval(0..100).\n')
+    # with open(input_file_name, "r") as file:
+    #     mashp_input = json.load(file)
 
-        for day_name, capacities in mashp_input["capacity"].items():
-            for care_unit_name, capacity in capacities.items():
-                file.write(f'day_has_capacity({day_name}, {care_unit_name}, {capacity}).\n')
-        
-        for service_name, service in mashp_input["services"].items():
-            file.write(f'service({service_name}, {service["careUnit"]}, {service["duration"]}).\n')
+    # with open(config["temporary_asp_file_name"], "w") as file:
 
-        for service_name, interdictions in mashp_input["interdiction"].items():
-            for other_service_name, duration in interdictions.items():
-                if duration > 0:
-                    file.write(f'interdiction({service_name}, {other_service_name}, {duration}).\n')
+    #     file.write(f'day(1..{mashp_input["horizon"]}).\n')
+    #     file.write(f'interval(0..100).\n')
 
-        for service_name, necessities in mashp_input["necessity"].items():
-            for other_service_name, interval in necessities.items():
-                file.write(f'necessity({service_name}, {other_service_name}, {interval[0]}, {interval[1]}).\n')
+    #     for day_name, capacities in mashp_input["capacity"].items():
+    #         for care_unit_name, capacity in capacities.items():
+    #             file.write(f'day_has_capacity({day_name}, {care_unit_name}, {capacity}).\n')
         
-        for packet_name, services in mashp_input["abstract_packet"].items():
-            for service_name in services:
-                file.write(f'packet_has_service({packet_name}, {service_name}).\n')
+    #     for service_name, service in mashp_input["services"].items():
+    #         file.write(f'service({service_name}, {service["careUnit"]}, {service["duration"]}).\n')
+
+    #     for service_name, interdictions in mashp_input["interdiction"].items():
+    #         for other_service_name, duration in interdictions.items():
+    #             if duration > 0:
+    #                 file.write(f'interdiction({service_name}, {other_service_name}, {duration}).\n')
+
+    #     for service_name, necessities in mashp_input["necessity"].items():
+    #         for other_service_name, interval in necessities.items():
+    #             file.write(f'necessity({service_name}, {other_service_name}, {interval[0]}, {interval[1]}).\n')
         
-        for patient_name, patient in mashp_input["pat_request"].items():
-            file.write(f'patient_has_priority({patient_name}, {patient["priority_weight"]}).\n')
+    #     for packet_name, services in mashp_input["abstract_packet"].items():
+    #         for service_name in services:
+    #             file.write(f'packet_has_service({packet_name}, {service_name}).\n')
         
-        for patient_name, patient in mashp_input["pat_request"].items():
-            for protocol_name, protocol in patient.items():
-                if protocol_name == "priority_weight":
-                    continue
-                for iteration_name, iteration in protocol.items():
-                    protocol_packets = iteration[0]
-                    initial_shift = iteration[1]
-                    for protocol_packet in protocol_packets:
-                        file.write(f'request({patient_name}, {protocol_name}, {iteration_name}, {protocol_packet["packet_id"]}, {protocol_packet["start_date"]}, {protocol_packet["freq"]}, {protocol_packet["tolerance"]}, {protocol_packet["existence"][0]}, {protocol_packet["existence"][1]}, {initial_shift}).\n')
+    #     for patient_name, patient in mashp_input["pat_request"].items():
+    #         file.write(f'patient_has_priority({patient_name}, {patient["priority_weight"]}).\n')
+        
+    #     for patient_name, patient in mashp_input["pat_request"].items():
+    #         for protocol_name, protocol in patient.items():
+    #             if protocol_name == "priority_weight":
+    #                 continue
+    #             for iteration_name, iteration in protocol.items():
+    #                 protocol_packets = iteration[0]
+    #                 initial_shift = iteration[1]
+    #                 for protocol_packet in protocol_packets:
+    #                     file.write(f'request({patient_name}, {protocol_name}, {iteration_name}, {protocol_packet["packet_id"]}, {protocol_packet["start_date"]}, {protocol_packet["freq"]}, {protocol_packet["tolerance"]}, {protocol_packet["existence"][0]}, {protocol_packet["existence"][1]}, {initial_shift}).\n')
     
     if args.use_cores:
         with open(config["previous_cores_asp_file_name"], "a+") as file:
@@ -127,50 +135,58 @@ def solve_with_asp(mashp_input):
                         json.dump(prev_cores, f)
 
     # solving of the instance
+    tmp_master_in_file  = os.path.join(INPUT_DIR, config["temporary_asp_file_name"])
+    master_asp_file     = os.path.join(config["asp_programs_folder"], config["master_asp_program"])
+    tmp_master_out_file = os.path.join(INPUT_DIR, config["temporary_output_file_name"])
     params = [
         "clingo",
-        config["temporary_asp_file_name"],
-        os.path.join(config["asp_programs_folder"], config["master_asp_program"]),
+        tmp_master_in_file,
+        master_asp_file,
         "--time-limit", str(args.time_limit),
         "--verbose=0"
     ]
-    with open(config["temporary_output_file_name"], "w") as file:
-        subprocess.run(params, stdout=file, stderr=subprocess.DEVNULL)
+    with open(tmp_master_out_file, "w") as file:
+        subprocess.run(params, stdout=file, stderr=file)#subprocess.DEVNULL)
     
     # decoding of the output
-    unordered_results = dict()
-    with open(config["temporary_output_file_name"], "r") as file:
+    unordered_results = format_SP_input_from_MP_output(tmp_master_out_file)
 
-        tokens = file.read().split("\n")[-4].split("do(")[1:]
-        tokens[-1] = tokens[-1] + " "
+    # unordered_results = dict()
+    # with open(config["temporary_output_file_name"], "r") as file:
+
+    #     tokens = file.read().split("\n")[-4].split("do(")[1:]
+    #     tokens[-1] = tokens[-1] + " "
         
-        for token in tokens:
-            patient_name, packet_name, day = token[:-2].split(",")
+    #     for token in tokens:
+    #         patient_name, packet_name, day = token[:-2].split(",")
 
-            if day not in unordered_results:
-                unordered_results[day] = dict()
-            if patient_name not in unordered_results[day]:
-                unordered_results[day][patient_name] = {"packets": list()}
+    #         if day not in unordered_results:
+    #             unordered_results[day] = dict()
+    #         if patient_name not in unordered_results[day]:
+    #             unordered_results[day][patient_name] = {"packets": list()}
 
-            unordered_results[day][patient_name]["packets"].append(packet_name)
+    #         unordered_results[day][patient_name]["packets"].append(packet_name)
 
     # removal of temporary working files
-    if os.path.isfile(config["temporary_asp_file_name"]):
-        os.remove(config["temporary_asp_file_name"])
-    if os.path.isfile(config["temporary_output_file_name"]):
-        os.remove(config["temporary_output_file_name"])
+    if os.path.isfile(tmp_master_in_file):
+        os.remove(tmp_master_in_file)
+    if os.path.isfile(tmp_master_out_file):
+        os.remove(tmp_master_out_file)
 
     # ordering of the keys
     results = dict()
-    for day_name in sorted(unordered_results.keys(), key=lambda d: (len(d), d)):
+    for day_name in sorted(unordered_results.keys(), key=lambda d: (len(str(d)), d)):
         results[day_name] = unordered_results[day_name]
 
     return results
 
 ################################## MILP SOLVER #################################
 
-def solve_with_milp(mashp_input):
+def solve_with_milp(input_file_name):
     """Returns a schedule attempt as a dict of dict of lists (day->patient->packets)"""
+
+    with open(input_file_name, "r") as file:
+        mashp_input = json.load(file)
 
     care_units_touched_by_packet = dict()
     for packet_name, packet in mashp_input["abstract_packet"].items():
@@ -547,14 +563,12 @@ if args.verbose:
 input_file_name = os.path.join(args.input, config["instance_file_name"])
 if not os.path.isfile(input_file_name):
     raise FileNotFoundError(f"Instance file {input_file_name} not found")
-with open(input_file_name, "r") as file:
-    mashp_input = json.load(file)
 
 # instance solving
 if args.method == "asp":
-    requests = solve_with_asp(mashp_input)
+    requests = solve_with_asp(input_file_name)
 else:
-    requests = solve_with_milp(mashp_input)
+    requests = solve_with_milp(input_file_name)
 
 # write requests to file
 results_file_name = os.path.join(args.input, config["subproblem_input_file_name"])

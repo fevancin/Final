@@ -8,10 +8,13 @@
     "subproblem_script": "solve_subproblem.py",
     "cores_script": "compute_cores.py",
 
-    "asp_programs_folder": "asp_programs",
-    "master_asp_program": "master.lp",
+    "__asp_programs_folder": "asp_programs",
+    "asp_programs_folder": "src",
+    "__master_asp_program": "master.lp",
+    "master_asp_program": "mashp_no_multishot.lp",
     "subproblem_asp_program": "subproblem.lp",
-    "temporary_asp_file_name": "temp.lp",
+    "__temporary_asp_file_name": "temp.lp",
+    "temporary_asp_file_name": "mashp_input.lp",
     "temporary_output_file_name": "temp.txt",
     
     "instance_file_name": "mashp_input.json",
