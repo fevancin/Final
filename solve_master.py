@@ -90,9 +90,9 @@ def solve_with_asp(input_file_name):
         with open(config["previous_cores_asp_file_name"], "a+") as file:
             coreid = 0
             if not args.expand_core_names:
-                if os.path.isfile("prev_cores.json"):
+                if os.path.isfile(config["previous_cores_file_name"]):
 
-                    with open("prev_cores.json", "r") as f:
+                    with open(config["previous_cores_file_name"], "r") as f:
                         prev_cores = json.load(f)
 
                     for coreid, core in enumerate(prev_cores["list"]):
@@ -102,9 +102,9 @@ def solve_with_asp(input_file_name):
                 else:
                     prev_cores = {"list": []}
 
-            if os.path.isfile("cores.json"):
+            if os.path.isfile(config["cores_file_name"]):
 
-                with open("cores.json", "r") as f:
+                with open(config["cores_file_name"], "r") as f:
                     cores = json.load(f)
                 
                 if args.expand_core_names:
@@ -128,10 +128,10 @@ def solve_with_asp(input_file_name):
                                         current_core.append((patient_name, packet_name, day))
                         prev_cores["list"].append(current_core)
                 
-                os.remove("cores.json")
+                os.remove(config["cores_file_name"])
 
                 if not args.expand_core_names:
-                    with open("prev_cores.json", "w") as f:
+                    with open(config["previous_cores_file_name"], "w") as f:
                         json.dump(prev_cores, f)
 
     # solving of the instance
