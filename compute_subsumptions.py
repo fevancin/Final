@@ -52,7 +52,7 @@ def is_contained(small_day, big_day):
     if len(big_day) == 0:
         return False
     
-    # check if the operator aer the same; useful if the schedule is periodic
+    # check if the operators are the same; useful if the schedule is periodic
     if len(small_day) == len(big_day):
         are_days_equal = True
         for operator, other_operator in zip(small_day.values(), big_day.values()):
