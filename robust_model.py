@@ -485,7 +485,7 @@ def solve_with_milp_robust(mashp_input, requests, mode, Gamma=0, max_delta=0):
             model = create_nominal_model(mashp_input, requests, day_name)
         if mode == 'milp_nominal_with_d':
             model = create_nominal_model_with_d_variables(mashp_input, requests, day_name)
-        if mode == 'robust':
+        if mode == 'milp_robust':
             model = create_robust_model(mashp_input, requests, day_name, Gamma=Gamma, max_delta=max_delta)
     
         # model.pprint()
@@ -512,11 +512,11 @@ def solve_with_milp_robust(mashp_input, requests, mode, Gamma=0, max_delta=0):
         for i in model.t_indexes:
             print(f"t[{i}] = {model.t[i].value}")
 
-        if mode in ['milp_nominal_with_d', 'robust']:
+        if mode in ['milp_nominal_with_d', 'milp_robust']:
             for i in model.d_indexes:
                 print(f"d[{i}] = {model.d[i].value}")
 
-        if mode == 'robust':
+        if mode == 'milp_robust':
             for i in model.S:
                 print(f"alpha[{i}] = {model.alpha[i].value}")
             for i in model.O:
