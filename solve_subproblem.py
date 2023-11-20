@@ -5,7 +5,7 @@ import time
 import argparse
 import subprocess
 
-from nominal_model import solve_with_milp_nominal
+from robust_model import solve_with_milp_robust
 
 from pyomo.environ import ConcreteModel, SolverFactory, maximize
 from pyomo.environ import Set, Var, Objective, Constraint
@@ -407,7 +407,7 @@ with open(requests_file_name, "r") as file:
 if args.method == "asp":
     scheduled_services = solve_with_asp(mashp_input, requests)
 elif args.method == "milp_nominal" or args.method == "milp_nominal_with_d" or args.method == "milp_robust":
-    scheduled_services = solve_with_milp_nominal(mashp_input, requests, args.method)
+    scheduled_services = solve_with_milp_robust(mashp_input, requests, args.method)
 else:
     scheduled_services = solve_with_milp(mashp_input, requests)
 

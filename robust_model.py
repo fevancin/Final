@@ -182,9 +182,13 @@ def create_instance_model(mashp_input, requests, day_name="1"):
         
     return model
 
-def create_nominal_model(mashp_input, requests):
 
-    model = create_instance_model(mashp_input, requests)
+
+
+
+def create_nominal_model(mashp_input, requests, day='1'):
+
+    model = create_instance_model(mashp_input, requests, day_name=day)
 
     # Objective function
     def obj_rule(model):
@@ -314,16 +318,34 @@ def create_nominal_model(mashp_input, requests):
 
     # Constraints (15) - Operator task end time
     def operator_end_time_rule(model, o):
-        return model.t[model.b_o[o]] <= model.end_o[o]
+        return model.t[model.b_o[o]] == model.end_o[o]
     model.operator_end_time = Constraint(model.O, rule=operator_end_time_rule)
+
+
+    #EXTRA Constraint - equality sum_j(x_ij) = sum_o(sum_j(y_ijo)) [implicit]
+    def explicit_x_y_relation_rule(model, pi,si):
+        i=(pi,si)
+        return sum(model.x[i,j] for j in model.x_next_indexes if (i,j) in model.x_indexes) == sum(model.y[i,j,o] for j in model.y_next_indexes for o in model.O if (i,j,o) in model.y_indexes)
+    model.explicit_x_y_relation = Constraint(model.S, rule=explicit_x_y_relation_rule)
+
+
+    #Extra Constraint - t=0 if not served
+    def set_t_default_zero_rule(model, pi,si):
+        i=(pi,si)
+        return model.t[i] <= model.bigT * model.z[i]
+    model.set_t_default_zero = Constraint(model.S, rule=set_t_default_zero_rule)
 
 
     return model
 
 
-def create_nominal_model_with_d_variables(mashp_input, requests):
 
-    model = create_nominal_model(mashp_input, requests)
+
+
+
+def create_nominal_model_with_d_variables(mashp_input, requests, day='1'):
+
+    model = create_nominal_model(mashp_input, requests, day)
 
     #replacement of the task time sequence for operators constraint with the version using d
     model.task_time_sequence_operator.deactivate()
@@ -331,7 +353,7 @@ def create_nominal_model_with_d_variables(mashp_input, requests):
     #Create new variable d for the idle before task
     model.d = Var(model.d_indexes, domain=NonNegativeIntegers, bounds=(0, model.bigT))
 
-    # Constraints (12) (replaced) - task time sequence for operators   NOTE: maybe an equality? no because of T
+    # Constraints (13) (replaced) - task time sequence for operators   NOTE: maybe an equality? no because of T
     def task_time_sequence_operator_with_d_rule(model, pi,si, pj,sj, o):
         i=(pi,si)
         j=(pj,sj)
@@ -362,52 +384,162 @@ def create_nominal_model_with_d_variables(mashp_input, requests):
     
     # Constraint (18) - task time sequence for operators with idle
     def idle_sequencing_operator_rule(model, o):
-        if [(i,j,o) for j in model.S for i in model.S if (i,j,o) in model.y_indexes]: #some variables y can be removed a priori if cannot be associated to o because of duration
-            # print(o, sum(model.d[i, o] + model.delta[i] * model.y[i, j, o] for j in model.y_next_indexes for i in model.S if (i,j,o) in model.y_indexes), " <= ", model.end_o[o] - model.start_o[o])
-            # input()
-            return sum(model.d[i, o] + sum(model.delta[i] * model.y[i, j, o] for j in model.y_next_indexes if (i,j,o) in model.y_indexes) for i in model.S if any((i,j,o) in model.y_indexes for j in model.S)) <= model.end_o[o] - model.start_o[o]
+        if [(i,j,o) for j in model.y_next_indexes for i in model.S if (i,j,o) in model.y_indexes]: #some variables y can be removed a priori if cannot be associated to o because of duration
+            return sum(model.d[i, o] + model.delta[i] * sum(model.y[i, j, o] for j in model.y_next_indexes if (i,j,o) in model.y_indexes) for i in model.S if any((i,j,o) in model.y_indexes for j in model.y_next_indexes)) <= model.end_o[o] - model.start_o[o]
         return Constraint.Skip
     model.task_time_sequence_operator_idle_chain = Constraint(model.O, rule=idle_sequencing_operator_rule)
 
 
     return model
 
-def solve_with_milp_nominal(mashp_input, requests, mode):
 
-    if mode == 'milp_nominal':
-        model = create_nominal_model(mashp_input, requests)
-    if mode == 'milp_nominal_with_d':
-        model = create_nominal_model_with_d_variables(mashp_input, requests)
+
+
+def create_robust_model(mashp_input, requests, day='1', Gamma=0, max_delta=0):
     
-    # model.pprint()
+    model = create_nominal_model_with_d_variables(mashp_input, requests, day)
 
-    # Create a solver instance (choose an appropriate solver)
-    solver = SolverFactory('glpk')
+    #define new dual variables alpha[i], lambda[o] 
+    # and parameters Gamma[o] and max_delta (Bertsimas and Sim)
+    model.alpha = Var(model.S, domain=NonNegativeReals)
+    model.lmbda = Var(model.O, domain=NonNegativeReals)
 
-    # Solve the MILP model
-    results = solver.solve(model)
+    model.Gamma     = Param(model.O, initialize={o:Gamma     for o in model.O})
+    model.max_delta = Param(model.S, initialize={i:max_delta for i in model.S})
 
-    # Print the results
-    if results.solver.termination_condition == TerminationCondition.optimal:
-        print("Optimal solution found")
-    else:
-        print("Solver did not converge to an optimal solution")
-
-    # Access variable values
-    for i in model.S:
-        print(f"z[{i}] = {model.z[i].value}")
-    for i in model.x_indexes:
-        print(f"x[{i}] = {model.x[i].value}")
-    for i in model.y_indexes:
-        print(f"y[{i}] = {model.y[i].value}")
-    for i in model.t_indexes:
-        print(f"t[{i}] = {model.t[i].value}")
-
-    if mode == 'nominal_with_d':
-        for i in model.d_indexes:
-            print(f"d[{i}] = {model.d[i].value}")
+    #replace the constrants with the roubust version
+    model.task_time_sequence_operator_idle_chain.deactivate()
+    model.task_time_sequence_patient.deactivate()
+    model.task_time_sequence_patient.deactivate()
+    model.task_time_sequence_operator_with_d.deactivate()
+    model.idle_definition_by_t.deactivate()
 
 
-    results.write()
+    # Constraints (6) - task time sequence for patients
+    def task_time_sequence_patient_with_protection(model, pi,si, pj,sj, p):
+        i=(pi,si)
+        j=(pj,sj)
+        if pi == p and pj == p and (i,j) in model.x_indexes:
+            return  model.t[i] + model.delta[i] * model.x[i,j] + model.alpha[i] <= model.t[j] + model.bigT * (1 - model.x[i,j])
+        return Constraint.Skip
+    model.task_time_sequence_patient_with_protection = Constraint(model.S, model.x_next_indexes, model.P, rule=task_time_sequence_patient_with_protection)
 
-    return None
+
+    # Constraints (13) - task time sequence for operators
+    def task_time_sequence_operator_with_protection(model, pi,si, pj,sj, o):
+        i=(pi,si)
+        j=(pj,sj)
+        if (i,j,o) in model.y_indexes:
+            return  model.t[i] + model.delta[i] * model.y[i,j,o] + model.alpha[i] <= model.t[j] + model.bigT * (1 - model.y[i,j,o])
+        return Constraint.Skip
+    model.task_time_sequence_operator_with_protection = Constraint(model.S, model.y_next_indexes, model.O, rule=task_time_sequence_operator_with_protection)
+
+
+    # Constraint (16) - defining d ad the idle time before task
+    def idle_definition_by_t_with_protection_rule(model, pi,si, pj,sj, o):
+        i=(pi,si)
+        j=(pj,sj)
+        if (i,j,o) in model.y_indexes:
+            return model.t[i] + model.delta[i] * model.y[i,j,o] + model.alpha[i] + model.d[j,o] >= model.t[j] - model.bigT * (1 - model.y[i,j,o])
+        return Constraint.Skip
+    model.idle_definition_by_t_with_protection = Constraint(model.S, model.y_next_indexes, model.O, rule=idle_definition_by_t_with_protection_rule)
+
+
+    # Constraint (18) ROBUST - robust task time sequence for operators with idle
+    def robust_idle_sequencing_operator_rule(model, o):
+        if [(i,j,o) for j in model.y_next_indexes for i in model.S if (i,j,o) in model.y_indexes]: #some variables y can be removed a priori if cannot be associated to o because of duration
+            return sum(model.d[i, o] + model.delta[i] * sum(model.y[i, j, o] for j in model.y_next_indexes if (i,j,o) in model.y_indexes) + \
+                       model.alpha[i] for i in model.S if any((i,j,o) in model.y_indexes for j in model.y_next_indexes)) + \
+                       model.Gamma[o] * model.lmbda[o] \
+                    <= model.end_o[o] - model.start_o[o]
+        return Constraint.Skip
+    model.robust_task_time_sequence_operator_idle_chain = Constraint(model.O, rule=robust_idle_sequencing_operator_rule)
+
+
+    # Constraint (19) - protection relation with delta
+    def protecton_relation_rule(model, pi,si, o):
+        i = (pi,si)
+        if any(i==(y_idx[0],y_idx[1]) and o==y_idx[-1] for y_idx in model.y_indexes):
+            return model.alpha[i] + model.lmbda[o] >= model.max_delta[i] * sum(model.y[i, j, o] for j in model.y_next_indexes if (i,j,o) in model.y_indexes)
+        return Constraint.Skip
+    model.protection_relation = Constraint(model.S, model.O, rule=protecton_relation_rule)
+
+
+    return model
+
+
+
+
+def solve_with_milp_robust(mashp_input, requests, mode, Gamma=0, max_delta=0):
+
+    scheduled_services = dict()
+
+    # solve each day separately
+    for day_name, day_requests in requests.items():
+        scheduled_services[day_name] = list()
+
+        if len(day_requests) == 0:
+            continue
+
+        if mode == 'milp_nominal':
+            model = create_nominal_model(mashp_input, requests, day_name)
+        if mode == 'milp_nominal_with_d':
+            model = create_nominal_model_with_d_variables(mashp_input, requests, day_name)
+        if mode == 'robust':
+            model = create_robust_model(mashp_input, requests, day_name, Gamma=Gamma, max_delta=max_delta)
+    
+        # model.pprint()
+
+        # Create a solver instance (choose an appropriate solver)
+        solver = SolverFactory('glpk')
+
+        # Solve the MILP model
+        results = solver.solve(model)
+
+        # Print the results
+        if results.solver.termination_condition == TerminationCondition.optimal:
+            print("Optimal solution found")
+        else:
+            print("Solver did not converge to an optimal solution")
+
+        # Access variable values
+        for i in model.S:
+            print(f"z[{i}] = {model.z[i].value}")
+        for i in model.x_indexes:
+            print(f"x[{i}] = {model.x[i].value}")
+        for i in model.y_indexes:
+            print(f"y[{i}] = {model.y[i].value}")
+        for i in model.t_indexes:
+            print(f"t[{i}] = {model.t[i].value}")
+
+        if mode in ['milp_nominal_with_d', 'robust']:
+            for i in model.d_indexes:
+                print(f"d[{i}] = {model.d[i].value}")
+
+        if mode == 'robust':
+            for i in model.S:
+                print(f"alpha[{i}] = {model.alpha[i].value}")
+            for i in model.O:
+                print(f"lambda[{i}] = {model.lmbda[i].value}")
+        
+
+        results.write()
+
+        # decoding solver answer
+        if results.solver.termination_condition == TerminationCondition.infeasible:
+            continue
+
+        for patient_name, service_name in model.S:
+            for o in model.O:
+                if any([int(value(model.y[patient_name, service_name, pj, sj, o])) == 1 
+                        for pj,sj in model.y_next_indexes if (patient_name, service_name, pj,sj, o) in model.y_indexes]):
+                    operator_name, care_unit_name = o.split("__")
+                    scheduled_services[day_name].append({
+                        "patient": patient_name,
+                        "service": service_name,
+                        "operator": operator_name,
+                        "care_unit": care_unit_name,
+                        "start": int(value(model.t[patient_name, service_name]))
+                    })
+
+    return scheduled_services
