@@ -5,6 +5,8 @@ import time
 import argparse
 import subprocess
 
+from nominal_model import solve_with_milp_nominal
+
 from pyomo.environ import ConcreteModel, SolverFactory, maximize
 from pyomo.environ import Set, Var, Objective, Constraint
 from pyomo.environ import Boolean, value, TerminationCondition, NonNegativeIntegers
@@ -14,7 +16,7 @@ from pyomo.environ import Boolean, value, TerminationCondition, NonNegativeInteg
 # read the command line arguments
 parser = argparse.ArgumentParser(description="Solve the subproblem")
 parser.add_argument("--input", help="folder with the instance file", type=str)
-parser.add_argument("-m", "--method", help="solving method", choices=["asp", "milp_basic", "milp_optimized", "milp_epsilon"], default="asp")
+parser.add_argument("-m", "--method", help="solving method", choices=["asp", "milp_basic", "milp_optimized", "milp_epsilon", "milp_nominal", "milp_nominal_with_d", "milp_robust"], default="asp")
 parser.add_argument("-t", "--time-limit", help="time limit for the solver", type=int, metavar="T", default=5)
 parser.add_argument("-v", "--verbose", help="prints what is done", action="store_true")
 args = parser.parse_args(sys.argv[1:])
@@ -404,6 +406,8 @@ with open(requests_file_name, "r") as file:
 # instance solving
 if args.method == "asp":
     scheduled_services = solve_with_asp(mashp_input, requests)
+elif args.method == "milp_nominal" or args.method == "milp_nominal_with_d" or args.method == "milp_robust":
+    scheduled_services = solve_with_milp_nominal(mashp_input, requests, args.method)
 else:
     scheduled_services = solve_with_milp(mashp_input, requests)
 
