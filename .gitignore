@@ -3,3 +3,4 @@
 !config/*.json
 
 *.pyc
+instances/group_30_days/instance_10_patients/mashp_input.lp
